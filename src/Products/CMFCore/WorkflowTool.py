@@ -1,15 +1,3 @@
-##############################################################################
-#
-# Copyright (c) 2001 Zope Foundation and Contributors.
-#
-# This software is subject to the provisions of the Zope Public License,
-# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
-# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
-# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
-# FOR A PARTICULAR PURPOSE.
-#
-##############################################################################
 """ Basic workflow tool.
 """
 
@@ -54,7 +42,7 @@ from .WorkflowCore import ActionWillBeInvokedEvent
 from .WorkflowCore import ObjectDeleted
 from .WorkflowCore import ObjectMoved
 from .WorkflowCore import WorkflowException
-
+from Products.CMFCore.utils import getToolByName  #added by Kaminie
 
 _marker = []  # Create a new marker object.
 
@@ -156,6 +144,10 @@ class WorkflowTool(UniqueObject, IFAwareObjectManager, Folder,
                     raise ValueError('"%s" is not a workflow ID.' % wf_id)
                 ids.append(wf_id)
         self._default_chain = tuple(ids)
+
+
+
+
         if REQUEST is not None:
             return self.manage_selectWorkflows(REQUEST,
                                                manage_tabs_message='Changed.')
@@ -330,8 +322,60 @@ class WorkflowTool(UniqueObject, IFAwareObjectManager, Folder,
     def getHistoryOf(self, wf_id, ob):
         """ Get the history of an object for a given workflow.
         """
-        wf = self.getWorkflowById(wf_id)
-        return queryMultiAdapter((ob, wf), IWorkflowHistory, default=())
+        print("in def getHistoryOf(self, wf_id, ob)")
+        wf = self.getWorkflowById(wf_id)  #get the workflow for this id
+        #Kaminie Code
+        m=queryMultiAdapter((ob, wf), IWorkflowHistory, default=())
+        print("printing original return m")
+        print(m)
+
+        workflowTool = getToolByName(self, "portal_workflow")
+        workflowids = workflowTool.getWorkflowIds()  # get workflow ids
+
+        listwfh=[]
+        for wfid in workflowids:
+            awf = self.getWorkflowById(wfid)
+            awfhistory = queryMultiAdapter((ob, awf), IWorkflowHistory, default=()) #have to pass the workflow  to def default_workflow_history(context, workflow):
+            print("printing awfhistory")
+            #awfhistory = history.get(id)
+            print(awfhistory)
+            #listawf=list(awfhistory)
+            #print(listawf)
+            #print("")
+            #wfh = (*wfh, awfhistory)
+            #listwfh.append(listawf)
+            if (awfhistory!=None):
+                for item in awfhistory:
+                     listwfh.append(item)
+
+
+        print("Printing wfh")
+        listwfhtuple=tuple(listwfh)
+        print(listwfhtuple)
+        #assign to wfh
+        wfh = listwfhtuple
+        print("iterate finished wfh")
+        for a in wfh:
+            print(a)
+        print("print new return wfh")
+        print(wfh)
+
+
+        if wfh:
+            return wfh
+        return None
+
+
+
+        #return m
+        #end my code
+        #return queryMultiAdapter((ob, wf), IWorkflowHistory, default=())  #original
+
+
+
+
+
+
 
     @security.private
     def getStatusOf(self, wf_id, ob):
@@ -441,8 +485,7 @@ class WorkflowTool(UniqueObject, IFAwareObjectManager, Folder,
     @security.protected(ManagePortal)
     @postonly
     def updateRoleMappings(self, REQUEST=None):
-        """ Allow workflows to update the role-permission mappings.
-        """
+        """ Allow workflows to update the role-permission mappings."""
         wfs = {}
         for id in self.objectIds():
             wf = self.getWorkflowById(id)
@@ -452,8 +495,7 @@ class WorkflowTool(UniqueObject, IFAwareObjectManager, Folder,
         count = self._recursiveUpdateRoleMappings(portal, wfs)
         if REQUEST is not None:
             msg = '%d object(s) updated.' % count
-            return self.manage_selectWorkflows(REQUEST,
-                                               manage_tabs_message=msg)
+            return self.manage_selectWorkflows(REQUEST, manage_tabs_message=msg)
         else:
             return count
 
@@ -623,6 +665,7 @@ class DefaultWorkflowStatus(object):
         self.wf_id = workflow.getId()
 
     def get(self):
+        print("In def get(self) ")
         history = getattr(self.context, 'workflow_history', {})
         wfh = history.get(self.wf_id)
         if wfh:
@@ -641,5 +684,9 @@ class DefaultWorkflowStatus(object):
 @implementer(IWorkflowHistory)
 @adapter(IWorkflowAware, IWorkflowDefinition)
 def default_workflow_history(context, workflow):
-    history = getattr(aq_base(context), 'workflow_history', {})
-    return history.get(workflow.getId(), ())
+    print("in def default_workflow_history")
+    history = getattr(aq_base(context), 'workflow_history', {})  #added by kaminie
+    x=history.get(workflow.getId(), ())
+    print ("Value to return")
+    print(x)
+    return x
